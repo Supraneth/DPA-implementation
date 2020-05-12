@@ -1,3 +1,4 @@
+#Importation des librairies principales du projet
 from pylab import *
 import numpy as np
 import scipy
@@ -32,6 +33,7 @@ def bit_get(byteval,idx):
     plt.title("Consommation total d'un chiffrement")
     show()
 
+#Fonction permettant la création d'une matrice d'hypothèse pour un index d'octet passé en paramètre sur le plaintext
 def createHypothesisTab(numberOfTraces, keyCandidateStart, keyCandidateStop, SBOX, byte):
     columns = 16
     rows = numberOfTraces
@@ -46,6 +48,12 @@ def createHypothesisTab(numberOfTraces, keyCandidateStart, keyCandidateStop, SBO
             hypothesis [p,k]= SBOX[hypothesis [p,k]]
     return hypothesis
 
+#Fonction permettant, à partir des hypothèses générées, de mettre en corrélation celles-ci et les traces pour trouver la bonne sous-clé.
+#Pour cela, on passe à travers un ensemble de courbes différentielles permettant de relever les corrélations. Une fois ces dernières
+#obtenues, on recherche la corrélation maximale (le pic le plus important) pour chacunes des sous-clés pour tous les premiers octets ciblés dans le
+#plaintext.
+#Une fois l'ensemble des sous-clés testées, on recherche la sous-clé avec la corrélation maximale sur tous les premiers octets. Celle-ci a donc de forte chance
+#d'être la clé que nous cherchons.
 def DPA(segmentLength, numberOfTraces, traces, hypothesis, keyCandidateStart, keyCandidateStop):    
     #--Définition des variables globales de la fonctions--#    
     mean_0 = zeros((256,segmentLength))
@@ -78,8 +86,10 @@ def DPA(segmentLength, numberOfTraces, traces, hypothesis, keyCandidateStart, ke
     return subkey
 
 
+# Main
 if __name__ == "__main__":
-    #--Définition des variables globales--#    
+    #--Définition des variables globales--# 
+    # Définition de la SBOX globale utilisée lors de la génération de la matrice d'hypothèses   
     SBOX=[99, 124, 119, 123, 242, 107, 111, 197, 48, 1, 103, 43, 254, 215, 171, 118,
       202, 130, 201, 125, 250, 89, 71, 240, 173, 212, 162, 175, 156, 164, 114, 192, 
       183, 253, 147, 38, 54, 63, 247, 204, 52, 165, 229, 241, 113, 216, 49, 21, 
@@ -103,17 +113,18 @@ if __name__ == "__main__":
     keyCandidateStart = 0
     keyCandidateStop = 255
     O_traces = traceload("traces-00112233445566778899aabbccddeeff.bin", traceSize, numberOfTraces)
+    #On focus sur le premier round d'AES détecté sur la courbe de consommation totale
     offset = 40000
     segmentLength = 75000
     traces = O_traces[:,offset:offset+segmentLength]
     #---------------------------------------#    
-
     #--Déchiffrement de la clé par DPA (approximation)--#    
     byte = 1
     key =  []
     print("[!] Détermination des sous-clés en cours...")
     for byte in range(0,16):
         hypothesisTab = createHypothesisTab(numberOfTraces, keyCandidateStart, keyCandidateStop, SBOX, byte)
+        print(hypothesisTab)
         subkey = DPA(segmentLength, numberOfTraces, traces, hypothesisTab, keyCandidateStart, keyCandidateStop)
         subkey = hex(subkey)
         key.append(subkey)
